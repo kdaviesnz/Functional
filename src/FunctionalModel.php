@@ -1,13 +1,16 @@
 <?php
 declare(strict_types = 1);
 
+// Checked for PSR2 compliance 22/4/2018
+
 namespace kdaviesnz\functional;
 
 /**
  * Class FunctionalModel
  * @package kdaviesnz\functional
  */
-class FunctionalModel {
+class FunctionalModel
+{
     /**
      * @var array
      */
@@ -29,58 +32,60 @@ class FunctionalModel {
     /**
      * FunctionalModel constructor.
      */
-    public function __construct() {
+    public function __construct()
+    {
         // Do nothing
     }
 
     /**
      * @return array
      */
-    public function getFunctionsWithMutatedVariables(): array {
-        $currentDirectory = $this->sourceDir;
+    public function getFunctionsWithMutatedVariables(): array
+    {
+        $current_directory = $this->sourceDir;
 
         $this->functionsWithMutatedVariables = array();
 
         // Look for functions with mutated variables
-        $callback = function ( string $sourceFile ) use ( $currentDirectory ) {
+        $callback = function (string $source_file) use ($current_directory) {
 
             // Get content of file.
             // Get functions/methods in file
-            $functions = $this->getFunctions( file_get_contents( $sourceFile ) );
+            $functions = $this->getFunctions(file_get_contents($source_file));
 
             // For each function check for mutated variables.
-            array_walk( $functions, function ( $functionInfo, $index ) use ( $currentDirectory, $sourceFile ) {
+            array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
 
-                $functionCode = $functionInfo["code"];
+                $function_code = $functionInfo["code"];
 
-                if ( strpos( $functionCode, "++" ) !== false ||
-                     strpos( $functionCode, "--" ) !== false ||
-                     strpos( $functionCode, ".=" ) !== false
+                if (strpos($function_code, "++") !== false ||
+                    strpos($function_code, "--") !== false ||
+                    strpos($function_code, ".=") !== false
                 ) {
                     $this->functionsWithMutatedVariables[] = array(
-                        "srcFile" => $sourceFile,
+                        "srcFile" => $source_file,
                         "name"    => $functionInfo["name"]
                     );
                 } else {
-                    preg_match_all( "/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $functionCode, $matches );
-                    if ( ! empty( $matches[1] ) ) {
-                        $variableNames = array_filter( $matches[1], function ( $item ) {
-                            return ! empty( trim( $item ) );
-                        } );
-                        if ( count( $variableNames ) != count( array_unique( $variableNames ) ) ) {
+                    preg_match_all("/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $function_code, $matches);
+                    if (!empty($matches[1])) {
+                        $variable_names = array_filter($matches[1], function ($item) {
+                            return !empty(trim($item));
+                        });
+                        if (count($variable_names) != count(array_unique($variable_names))) {
                             $this->functionsWithMutatedVariables[] = array(
-                                "srcFile" => $sourceFile,
+                                "srcFile" => $source_file,
                                 "name"    => $functionInfo["name"]
                             );
                         }
                     }
                 }
 
-            } );
+            });
 
         };
 
-        $iterator = new \kdaviesnz\callbackfileiterator\CallbackFileIterator( $currentDirectory, $callback, true );
+        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
 
         return $this->functionsWithMutatedVariables;
     }
@@ -88,42 +93,43 @@ class FunctionalModel {
     /**
      * @return array
      */
-    public function getFunctionsWithLoops(): array {
-        $currentDirectory = $this->sourceDir;
+    public function getFunctionsWithLoops(): array
+    {
+        $current_directory = $this->sourceDir;
 
         $this->functionsWithLoops = array();
 
         // Look for functions with loops
-        $callback = function ( string $sourceFile ) use ( $currentDirectory ) {
+        $callback = function (string $source_file) use ($current_directory) {
 
             // Get content of file.
             // Get functions/methods in file
-            $functions = $this->getFunctions( file_get_contents( $sourceFile ) );
+            $functions = $this->getFunctions(file_get_contents($source_file));
 
             // For each function check for loops.
-            array_walk( $functions, function ( $functionInfo, $index ) use ( $currentDirectory, $sourceFile ) {
+            array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
 
-                $functionCode = $functionInfo["code"];
+                $function_code = $functionInfo["code"];
 
-                if ( strpos( $functionCode, "do(" ) !== false ||
-                     strpos( $functionCode, "do (" ) !== false ||
-                     strpos( $functionCode, "endwhile" ) !== false ||
-                     strpos( $functionCode, "for (" ) !== false ||
-                     strpos( $functionCode, "for(" ) !== false ||
-                     strpos( $functionCode, "foreach(" ) !== false ||
-                     strpos( $functionCode, "foreach (" ) !== false ||
-                     strpos( $functionCode, "while" ) !== false
+                if (strpos($function_code, "do(") !== false ||
+                    strpos($function_code, "do (") !== false ||
+                    strpos($function_code, "endwhile") !== false ||
+                    strpos($function_code, "for (") !== false ||
+                    strpos($function_code, "for(") !== false ||
+                    strpos($function_code, "foreach(") !== false ||
+                    strpos($function_code, "foreach (") !== false ||
+                    strpos($function_code, "while") !== false
                 ) {
                     $this->functionsWithLoops[] = array(
-                        "srcFile" => $sourceFile,
+                        "srcFile" => $source_file,
                         "name"    => $functionInfo["name"]
                     );
                 }
 
-            } );
+            });
         };
 
-        $iterator = new \kdaviesnz\callbackfileiterator\CallbackFileIterator( $currentDirectory, $callback, true );
+        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
 
         return $this->functionsWithLoops;
     }
@@ -131,75 +137,77 @@ class FunctionalModel {
     /**
      * @return array
      */
-    public function getSimilarFunctions(): array {
-        $currentDirectory = $this->sourceDir;
+    public function getSimilarFunctions(): array
+    {
+        $current_directory = $this->sourceDir;
 
         $this->similarFunctions = array();
 
         // Check functions for common code.
         // If found then recommend code be passed in as a function parameter.
-        $callback = function ( string $sourceFile ) use ( $currentDirectory ) {
+        $callback = function (string $source_file) use ($current_directory) {
 
             // Get content of file.
             // Get functions/methods in file
-            $functionsToCompare = $this->getFunctions( file_get_contents( $sourceFile ) );
+            $functions_to_compare = $this->getFunctions(file_get_contents($source_file));
 
             // For each function check other files for similar functions.
             // If similar function found then inform user.
-            array_walk( $functionsToCompare, function ( $functionInfo, $index ) use ( $currentDirectory, $sourceFile ) {
+            array_walk($functions_to_compare, function ($functionInfo, $index) use ($current_directory, $source_file) {
 
-                $functionToCompareName = $functionInfo["name"];
-                $functionCodeToCompare = $functionInfo["code"];
+                $function_to_compare_name = $functionInfo["name"];
+                $function_code_to_compare = $functionInfo["code"];
 
                 $callback = function (
-                    string $functionToCompareName,
-                    string $functionCodeToCompare,
-                    string $currentDirectory,
-                    string $sourceFile
+                    string $function_to_compare_name,
+                    string $function_code_to_compare,
+                    string $source_file
                 ) {
                     return function (
-                        string $targetFile
-                    ) use ( $functionToCompareName, $functionCodeToCompare, $sourceFile ) {
+                        string $target_file
+                    ) use ($function_to_compare_name, $function_code_to_compare, $source_file) {
 
                         // Get functions
-                        $functions = $this->getFunctions( file_get_contents( $targetFile ) );
+                        $functions = $this->getFunctions(file_get_contents($target_file));
 
                         // For each function compare with comparison function
-                        array_walk( $functions,
-                            function ( $functionInfo, $index ) use (
-                                $functionToCompareName,
-                                $functionCodeToCompare,
-                                $targetFile,
-                                $sourceFile
+                        array_walk($functions,
+                            function ($functionInfo, $index) use (
+                                $function_to_compare_name,
+                                $function_code_to_compare,
+                                $target_file,
+                                $source_file
                             ) {
 
 
-                                if ( $this->isSimilar( $functionCodeToCompare, $functionInfo["code"] ) ) {
+                                if ($this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
                                     $this->similarFunctions[] =
                                         array(
-                                            "srcFile"        => $sourceFile,
-                                            "targetFile"     => $targetFile,
-                                            "srcFunction"    => $functionToCompareName,
+                                            "srcFile"        => $source_file,
+                                            "targetFile"     => $target_file,
+                                            "srcFunction"    => $function_to_compare_name,
                                             "targetFunction" => $functionInfo["name"]
                                         );
                                 }
 
-                            } );
+                            }
+                        );
 
 
                     };
                 };
 
-                $iterator = new \kdaviesnz\callbackfileiterator\CallbackFileIterator(
-                    $currentDirectory,
-                    $callback( $functionToCompareName, $functionCodeToCompare, $currentDirectory, $sourceFile ),
-                    true );
+                new \kdaviesnz\callbackfileiterator\CallbackFileIterator(
+                    $current_directory,
+                    $callback($function_to_compare_name, $function_code_to_compare, $source_file),
+                    true
+                );
 
-            } );
+            });
 
         };
 
-        $iterator = new \kdaviesnz\callbackfileiterator\CallbackFileIterator( $currentDirectory, $callback, true );
+        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
 
         return $this->similarFunctions;
 
@@ -212,55 +220,78 @@ class FunctionalModel {
      * @return array
      * @throws \ReflectionException
      */
-    private function getMethodCode( string $class, string $method ): array {
-        $reflection = new \ReflectionMethod( $class, $method );
+    private function getMethodCode(string $class, string $method): array
+    {
+        $reflection = new \ReflectionMethod($class, $method);
+        return $this->getCodeFromReflection($method, $reflection);
+    }
+
+    /**
+     * @param string $function_name
+     *
+     * @return array
+     * @throws \ReflectionException
+     */
+    private function getFunctionCode(string $function_name): array
+    {
+        $reflection = new \ReflectionFunction($function_name);
+        return $this->getCodeFromReflection($function_name, $reflection);
+    }
+
+    /**
+     * @param string $method_or_function_name
+     * @param $reflection
+     *
+     * @return array
+     */
+    private function getCodeFromReflection(string $method_or_function_name, $reflection)
+    {
         $file       = new \SplFileObject($reflection->getFileName());
-        $file->seek( $reflection->getStartLine() );
+        $file->seek($reflection->getStartLine());
         $code = "";
         do {
             $code .= $file->current();
             $file->next();
-        } while ( $file->key() < $reflection->getEndLine() );
+        } while ($file->key() < $reflection->getEndLine());
 
         return array(
-            "name" => $method,
-            "code" => $this->stripComments( $code )
+            "name" => $method_or_function_name,
+            "code" => $this->stripComments($code)
         );
     }
 
     /**
-     * @param array $tokenisedContent
+     * @param array $tokenised_content
      * @param array $tokens
      *
      * @return array
      */
-    private function addToken( array $tokenisedContent, array $tokens ): array {
-
-        $i = 0;
-        for ( $i = 0; $i < count( $tokens ); $i ++ ) {
-            $token = $tokens[ $i ];
-            switch ( $token[0] ) {
+    private function addToken(array $tokenised_content, array $tokens): array
+    {
+        for ($i = 0; $i < count($tokens); $i ++) {
+            $token = $tokens[$i];
+            switch ($token[0]) {
                 case T_CLASS:
                     $class = "";
                     do {
                         $i ++;
-                        if ( ! is_string( $tokens[ $i ][0] ) && ! empty( trim( $tokens[ $i ][1] ) ) ) {
-                            $class .= $tokens[ $i ][1];
+                        if (!is_string($tokens[$i][0]) && !empty(trim($tokens[$i][1]))) {
+                            $class .= $tokens[$i][1];
                         }
-                    } while ( ! is_string( $tokens[ $i ][0] ) );
+                    } while (!is_string($tokens[$i][0]));
 
-                    $class                     = $tokenisedContent["namespace"] . "\\" . $class;
-                    $tokenisedContent["class"] = $class;
-                    $methods                   = get_class_methods( $class );
+                    $class                     = $tokenised_content["namespace"] . "\\" . $class;
+                    $tokenised_content["class"] = $class;
+                    $methods                   = get_class_methods($class);
 
-                    $methodsWithCode = array_map(
-                        function ( $method ) use ( $class ) {
-                            return $this->getMethodCode( $class, $method );
+                    $methods_with_code = array_map(
+                        function ($method) use ($class) {
+                            return $this->getMethodCode($class, $method);
                         },
                         $methods
                     );
 
-                    $tokenisedContent["methods"] = $methodsWithCode;
+                    $tokenised_content["methods"] = $methods_with_code;
 
                     break;
 
@@ -268,16 +299,29 @@ class FunctionalModel {
                     $namespace = "";
                     do {
                         $i ++;
-                        if ( ! is_string( $tokens[ $i ][0] ) && ! empty( trim( $tokens[ $i ][1] ) ) ) {
-                            $namespace .= $tokens[ $i ][1];
+                        if (!is_string($tokens[$i][0]) && !empty(trim($tokens[$i][1]))) {
+                            $namespace .= $tokens[$i][1];
                         }
-                    } while ( ! is_string( $tokens[ $i ][0] ) );
-                    $tokenisedContent["namespace"] = $namespace;
+                    } while (!is_string($tokens[$i][0]));
+                    $tokenised_content["namespace"] = $namespace;
                     break;
+
+                case T_FUNCTION:
+                    $function_name = "\\";
+                    do {
+                        $i ++;
+                        if (!is_string($tokens[$i][0]) && !empty(trim($tokens[$i][1]))) {
+                            $function_name .= $tokens[$i][1];
+                        }
+                    } while (!is_string($tokens[$i][0]));
+
+                    if (function_exists($function_name)) {
+                        $tokenised_content["functions"][] = $this->getFunctionCode($function_name);
+                    }
             }
         }
 
-        return $tokenisedContent;
+        return $tokenised_content;
     }
 
     /**
@@ -285,16 +329,13 @@ class FunctionalModel {
      *
      * @return array
      */
-    private function getTokenisedContentFromClass( string $content ) {
-        $temp = array();
-        // die();
-        $tokens = token_get_all( $content );
+    private function getTokenisedContent(string $content)
+    {
 
-
-        $tokenisedContent = array();
-        $tokenisedContent = $this->addToken( $tokenisedContent, $tokens );
-
-        return $tokenisedContent;
+        $tokens = token_get_all($content);
+        $tokenised_content = array();
+        $tokenised_content = $this->addToken($tokenised_content, $tokens);
+        return $tokenised_content;
 
     }
 
@@ -303,19 +344,17 @@ class FunctionalModel {
      *
      * @return array
      */
-    private function getFunctions( string $content ): array {
+    private function getFunctions(string $content): array
+    {
 
-        // Class methods
-        $tokenisedClassContent = $this->getTokenisedContentFromClass( $content );
+        $tokenised_content = $this->getTokenisedContent($content);
+        $functions = array();
 
-        // Check for $tokenisedContent["methods"];
-        if ( isset( $tokenisedClassContent["methods"] ) ) {
-            $functions = $tokenisedClassContent["methods"];
-
-            return $tokenisedClassContent["methods"];
-        } else {
-            // File of just functions
-            $functions = array();
+        // Check for $tokenised_content["methods"];
+        if (isset($tokenised_content["methods"])) {
+            $functions = $tokenised_content["methods"];
+        } elseif (isset($tokenised_content["functions"])) {
+            $functions = $tokenised_content["functions"];
         }
 
         return $functions;
@@ -328,8 +367,9 @@ class FunctionalModel {
      *
      * @return bool
      */
-    private function isSimilar( string $comparisonFunctionContent, string $currentFunctionContent ): bool {
-        similar_text( $comparisonFunctionContent, $currentFunctionContent, $perc );
+    private function isSimilar(string $comparisonFunctionContent, string $currentFunctionContent): bool
+    {
+        similar_text($comparisonFunctionContent, $currentFunctionContent, $perc);
 
         return $perc > 60 && $perc < 100;
     }
@@ -339,19 +379,20 @@ class FunctionalModel {
      *
      * @return string
      */
-    private function stripComments( string $content ): string {
-        $tokens = token_get_all( $content );
+    private function stripComments(string $content): string
+    {
+        $tokens = token_get_all($content);
 
-        $contentSansComments = array_reduce(
+        $content_sans_comments = array_reduce(
             $tokens,
-            function ( $carry, $token ) {
-                if ( is_string( $token ) ) {
+            function ($carry, $token) {
+                if (is_string($token)) {
                     // simple 1-character token
                     return $carry . $token;
                 } else {
                     // token array
-                    list( $id, $text ) = $token;
-                    switch ( $id ) {
+                    list($id, $text) = $token;
+                    switch ($id) {
                         case T_COMMENT:
                         case T_DOC_COMMENT:
                             // no action on comments
@@ -367,6 +408,6 @@ class FunctionalModel {
             },
             ""
         );
-        return $contentSansComments;
+        return $content_sans_comments;
     }
 }
