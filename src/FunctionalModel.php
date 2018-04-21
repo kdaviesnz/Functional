@@ -251,8 +251,12 @@ class FunctionalModel
      *
      * @return array
      */
-    private function getCodeFromReflection(string $method_or_function_name, $reflection)
+    private function getCodeFromReflection(string $method_or_function_name, $reflection):array
     {
+        if (is_bool($reflection->getFileName())) {
+            return array();
+        }
+
         $file       = new \SplFileObject($reflection->getFileName());
         $file->seek($reflection->getStartLine());
         $code = "";
@@ -287,9 +291,22 @@ class FunctionalModel
                         }
                     } while (!is_string($tokens[$i][0]));
 
+                    // Check for "extends"
+                    preg_match("/(.*?)extends/", $class, $matches);
+                    if (!empty($matches)) {
+                        $class = $matches[1];
+                    }
+
+                    // Check for "implements"
+                    preg_match("/(.*?)implements/", $class, $matches);
+                    if (!empty($matches)) {
+                        $class = $matches[1];
+                    }
+
                     $class                     = $tokenised_content["namespace"] . "\\" . $class;
                     $tokenised_content["class"] = $class;
                     $methods                   = get_class_methods($class);
+
 
                     $methods_with_code = array_map(
                         function ($method) use ($class) {
