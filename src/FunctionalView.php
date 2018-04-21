@@ -112,7 +112,7 @@ class FunctionalView
         return function (array $item) {
             ?>
             <p>Method/Function <?php echo $item["name"]; ?>() in
-                <?php echo $item["srcFile"]; ?> contains at least mutated variable.
+                <?php echo $item["srcFile"]; ?> contains at least one mutated variable.
                 Consider assigning to a new variable when variable is mutated.</p>
             <?php
         };
