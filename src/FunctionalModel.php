@@ -11,6 +11,12 @@ namespace kdaviesnz\functional;
  */
 class FunctionalModel
 {
+
+    /**
+     * @var string
+     */
+    public $template = "";
+
     /**
      * @var array
      */
@@ -167,6 +173,7 @@ class FunctionalModel
                         string $target_file
                     ) use ($function_to_compare_name, $function_code_to_compare, $source_file) {
 
+
                         // Get functions
                         $functions = $this->getFunctions(file_get_contents($target_file));
 
@@ -179,8 +186,11 @@ class FunctionalModel
                                 $source_file
                             ) {
 
-
-                                if ($this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
+                                if ($source_file == $target_file
+                                    && $function_to_compare_name == $functionInfo["name"]
+                                ) {
+                                    // Do nothing.
+                                } elseif ($this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
                                     $this->similarFunctions[] =
                                         array(
                                             "srcFile"        => $source_file,
@@ -192,7 +202,6 @@ class FunctionalModel
 
                             }
                         );
-
 
                     };
                 };
@@ -222,8 +231,7 @@ class FunctionalModel
      */
     private function getMethodCode(string $class, string $method): array
     {
-        $reflection = new \ReflectionMethod($class, $method);
-        return $this->getCodeFromReflection($method, $reflection);
+        return $this->getCodeFromReflection($method, new \ReflectionMethod($class, $method));
     }
 
     /**
@@ -234,8 +242,7 @@ class FunctionalModel
      */
     private function getFunctionCode(string $function_name): array
     {
-        $reflection = new \ReflectionFunction($function_name);
-        return $this->getCodeFromReflection($function_name, $reflection);
+        return $this->getCodeFromReflection($function_name,  new \ReflectionFunction($function_name));
     }
 
     /**
@@ -371,7 +378,7 @@ class FunctionalModel
     {
         similar_text($comparisonFunctionContent, $currentFunctionContent, $perc);
 
-        return $perc > 60 && $perc < 100;
+        return $perc > 60;
     }
 
     /**

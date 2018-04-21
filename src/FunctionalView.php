@@ -32,41 +32,49 @@ class FunctionalView
         $this->functionalModel = $model;
     }
 
+
     /**
      *
      */
-    public function outputFunctionsWithMutatedVariables()
+    public function output()
     {
-        ?>
-        <h1>Mutated variables</h1>
-        <?php
+        $functionsWithMutatedVariablesHTML = $this->outputFunctionsWithMutatedVariables();
+        $functionsWithLoopsHTML = $this->outputFunctionsWithLoops();
+        $similarFunctionsHTML = $this->outputSimilarFunctions();
+        require_once($this->functionalModel->template);
+    }
+
+    /**
+     *
+     */
+    public function outputFunctionsWithMutatedVariables():string
+    {
+        ob_start();
         $functionsWithMutatedVariables = $this->functionalModel->getFunctionsWithMutatedVariables();
         $this->render($functionsWithMutatedVariables, $this->functionsWithMutatedVariablesHTML());
+        return ob_get_clean();
     }
 
     /**
      *
      */
-    public function outputFunctionsWithLoops()
+    public function outputFunctionsWithLoops():string
     {
-        ?>
-        <h1>Loops</h1>
-        <?php
+        ob_start();
         $functionsWithLoops = $this->functionalModel->getFunctionsWithLoops();
         $this->render($functionsWithLoops, $this->functionsWithLoopsHTML());
+        return ob_get_clean();
     }
 
     /**
      *
      */
-    public function outputSimilarFunctions()
+    public function outputSimilarFunctions():string
     {
-        ?>
-        <h1>Similar code</h1>
-        <?php
+        ob_start();
         $similar_functions = $this->functionalModel->getSimilarFunctions();
         $this->render($similar_functions, $this->similarFunctionsHTML());
-
+        return ob_get_clean();
     }
 
     /**

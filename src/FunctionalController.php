@@ -33,4 +33,9 @@ class FunctionalController
     {
         $this->functionalModel->sourceDir = $sourceDir;
     }
+
+    public function setTemplate(string $template)
+    {
+        $this->functionalModel->template = "templates/main.html.php";
+    }
 }
