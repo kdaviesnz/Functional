@@ -12,6 +12,7 @@ class FunctionalTest extends \PHPUnit_Framework_TestCase {
         require_once("src/FunctionalController.php");
         require_once("src/FunctionalModel.php");
         require_once("src/FunctionalView.php");
+        require_once("src/functions.php");
 
         $model = new \kdaviesnz\functional\FunctionalModel();
         $controller = new \kdaviesnz\functional\FunctionalController($model);

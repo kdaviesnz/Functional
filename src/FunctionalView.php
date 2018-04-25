@@ -32,7 +32,6 @@ class FunctionalView
         $this->functionalModel = $model;
     }
 
-
     /**
      *
      */
