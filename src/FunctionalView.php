@@ -37,10 +37,25 @@ class FunctionalView
      */
     public function output()
     {
-        $functionsWithMutatedVariablesHTML = $this->outputFunctionsWithMutatedVariables();
-        $functionsWithLoopsHTML = $this->outputFunctionsWithLoops();
-        $similarFunctionsHTML = $this->outputSimilarFunctions();
+        $functionsHTML = $this->getFunctionsHTML();
+        $functionsWithMutatedVariablesHTML = $functionsHTML["functionsWithMutatedVariablesHTML"];
+        $functionsWithLoopsHTML = $functionsHTML['functionsWithLoopsHTML'];
+        $similarFunctionsHTML = $functionsHTML['similarFunctionsHTML'];
         require_once($this->functionalModel->template);
+    }
+
+    public function getFunctionsHTML():array
+    {
+        $functions = $this->functionalModel->getFunctionsWithIssues();
+        $functionsWithMutatedVariablesHTML = $this->getHTML($functions["mutatedVariables"], $this->functionsWithMutatedVariablesHTML());
+        $functionsWithLoopsHTML = $this->getHTML($functions["loops"], $this->functionsWithLoopsHTML());
+        $similarFunctionsHTML = $this->getHTML($functions["similarFunctions"], $this->similarFunctionsHTML());
+
+        return array(
+                "functionsWithMutatedVariablesHTML" => $functionsWithMutatedVariablesHTML,
+                "functionsWithLoopsHTML" => $functionsWithLoopsHTML,
+                "similarFunctionsHTML" => $similarFunctionsHTML
+        );
     }
 
     /**
@@ -49,7 +64,8 @@ class FunctionalView
     public function outputFunctionsWithMutatedVariables():string
     {
         ob_start();
-        $functionsWithMutatedVariables = $this->functionalModel->getFunctionsWithMutatedVariables();
+        $functions = $this->functionalModel->getFunctionsWithIssues();
+        $functionsWithMutatedVariables = $functions['mutatedVariables'];
         $this->render($functionsWithMutatedVariables, $this->functionsWithMutatedVariablesHTML());
         return ob_get_clean();
     }
@@ -60,7 +76,8 @@ class FunctionalView
     public function outputFunctionsWithLoops():string
     {
         ob_start();
-        $functionsWithLoops = $this->functionalModel->getFunctionsWithLoops();
+        $functions = $this->functionalModel->getFunctionsWithIssues();
+        $functionsWithLoops = $functions["loops"];
         $this->render($functionsWithLoops, $this->functionsWithLoopsHTML());
         return ob_get_clean();
     }
@@ -71,7 +88,8 @@ class FunctionalView
     public function outputSimilarFunctions():string
     {
         ob_start();
-        $similar_functions = $this->functionalModel->getSimilarFunctions();
+        $functions = $this->functionalModel->getFunctionsWithIssues();
+        $similar_functions = $functions["similarFunctions"];
         $this->render($similar_functions, $this->similarFunctionsHTML());
         return ob_get_clean();
     }
@@ -130,4 +148,16 @@ class FunctionalView
             }
         );
     }
+
+    /**
+     * @param array $items
+     * @param callable $html_callback
+     */
+    private function getHTML(array $items, callable $html_callback)
+    {
+        ob_start();
+        $this->render($items, $html_callback);
+        return ob_get_clean();
+    }
+
 }

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-// Checked for PSR2 compliance 22/4/2018
+// Checked for PSR2 compliance 26/4/2018
 
 namespace kdaviesnz\functional;
 
@@ -46,7 +46,7 @@ class FunctionalModel
     /**
      * @return array
      */
-    public function getFunctionsWithMutatedVariables(): array
+    public function getFunctionsWithIssues(): array
     {
         $current_directory = $this->sourceDir;
 
@@ -59,167 +59,140 @@ class FunctionalModel
             // Get functions/methods in file
             $functions = $this->getFunctions(file_get_contents($source_file));
 
-            // For each function check for mutated variables.
+            // For each function check for mutated variables, loops.
             array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
 
-                $function_code = $functionInfo["code"];
+                // This sets $this->>functionsWithMutatedVariables
+                $this->checkForMutatedVariables($functionInfo, $source_file);
 
-                if (strpos($function_code, "++") !== false ||
-                    strpos($function_code, "--") !== false ||
-                    strpos($function_code, ".=") !== false
-                ) {
+                // This sets $this->functionsWithLoops
+                $this->checkForLoops($functionInfo, $source_file);
+
+                // This sets $this->similarFunctions
+                $this->checkForSimilarCode($functionInfo, $current_directory, $source_file);
+
+            });
+
+        };
+
+        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
+
+        return array(
+            "mutatedVariables" => $this->functionsWithMutatedVariables,
+            "loops" => $this->functionsWithLoops,
+            "similarFunctions" => $this->similarFunctions
+        );
+
+    }
+
+    /**
+     * @param array $functionInfo
+     * @param string $source_file
+     */
+    private function checkForMutatedVariables(array $functionInfo, string $source_file)
+    {
+        if (strpos($functionInfo["code"], "++") !== false ||
+            strpos($functionInfo["code"], "--") !== false ||
+            strpos($functionInfo["code"], ".=") !== false
+        ) {
+            $this->functionsWithMutatedVariables[] = array(
+                "srcFile" => $source_file,
+                "name"    => $functionInfo["name"]
+            );
+        } else {
+            preg_match_all("/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $functionInfo["code"], $matches);
+            if (!empty($matches[1])) {
+                $variable_names = array_filter($matches[1], function ($item) {
+                    return !empty(trim($item));
+                });
+                if (count($variable_names) != count(array_unique($variable_names))) {
                     $this->functionsWithMutatedVariables[] = array(
                         "srcFile" => $source_file,
                         "name"    => $functionInfo["name"]
                     );
-                } else {
-                    preg_match_all("/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $function_code, $matches);
-                    if (!empty($matches[1])) {
-                        $variable_names = array_filter($matches[1], function ($item) {
-                            return !empty(trim($item));
-                        });
-                        if (count($variable_names) != count(array_unique($variable_names))) {
-                            $this->functionsWithMutatedVariables[] = array(
-                                "srcFile" => $source_file,
-                                "name"    => $functionInfo["name"]
-                            );
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array $functionInfo
+     * @param string $source_file
+     */
+    private function checkForLoops(array $functionInfo, string $source_file)
+    {
+        if (strpos($functionInfo["code"], "do(") !== false ||
+            strpos($functionInfo["code"], "do (") !== false ||
+            strpos($functionInfo["code"], "endwhile") !== false ||
+            strpos($functionInfo["code"], "for (") !== false ||
+            strpos($functionInfo["code"], "for(") !== false ||
+            strpos($functionInfo["code"], "foreach(") !== false ||
+            strpos($functionInfo["code"], "foreach (") !== false ||
+            strpos($functionInfo["code"], "while") !== false
+        ) {
+            $this->functionsWithLoops[] = array(
+                "srcFile" => $source_file,
+                "name"    => $functionInfo["name"]
+            );
+        }
+    }
+
+    /**
+     * @param array $functionInfo
+     * @param string $current_directory
+     * @param string $source_file
+     */
+    private function checkForSimilarCode(array $functionInfo, string $current_directory, string $source_file)
+    {
+        $function_to_compare_name = $functionInfo["name"];
+        $function_code_to_compare = $functionInfo["code"];
+
+        $callback = function (
+            string $function_to_compare_name,
+            string $function_code_to_compare,
+            string $source_file
+        ) {
+            return function (
+                string $target_file
+            ) use ($function_to_compare_name, $function_code_to_compare, $source_file) {
+
+                // Get functions
+                $functions = $this->getFunctions(file_get_contents($target_file));
+
+                // For each function compare with comparison function
+                array_walk($functions,
+                    function ($functionInfo, $index) use (
+                        $function_to_compare_name,
+                        $function_code_to_compare,
+                        $target_file,
+                        $source_file
+                    ) {
+
+                        if ($source_file == $target_file
+                            && $function_to_compare_name == $functionInfo["name"]
+                        ) {
+                            // Do nothing.
+                        } elseif ($this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
+                            $this->similarFunctions[] =
+                                array(
+                                    "srcFile"        => $source_file,
+                                    "targetFile"     => $target_file,
+                                    "srcFunction"    => $function_to_compare_name,
+                                    "targetFunction" => $functionInfo["name"]
+                                );
                         }
+
                     }
-                }
-
-            });
-
-        };
-
-        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
-
-        return $this->functionsWithMutatedVariables;
-    }
-
-    /**
-     * @return array
-     */
-    public function getFunctionsWithLoops(): array
-    {
-        $current_directory = $this->sourceDir;
-
-        $this->functionsWithLoops = array();
-
-        // Look for functions with loops
-        $callback = function (string $source_file) use ($current_directory) {
-
-            // Get content of file.
-            // Get functions/methods in file
-            $functions = $this->getFunctions(file_get_contents($source_file));
-
-            // For each function check for loops.
-            array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
-
-                $function_code = $functionInfo["code"];
-
-                if (strpos($function_code, "do(") !== false ||
-                    strpos($function_code, "do (") !== false ||
-                    strpos($function_code, "endwhile") !== false ||
-                    strpos($function_code, "for (") !== false ||
-                    strpos($function_code, "for(") !== false ||
-                    strpos($function_code, "foreach(") !== false ||
-                    strpos($function_code, "foreach (") !== false ||
-                    strpos($function_code, "while") !== false
-                ) {
-                    $this->functionsWithLoops[] = array(
-                        "srcFile" => $source_file,
-                        "name"    => $functionInfo["name"]
-                    );
-                }
-
-            });
-        };
-
-        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
-
-        return $this->functionsWithLoops;
-    }
-
-    /**
-     * @return array
-     */
-    public function getSimilarFunctions(): array
-    {
-        $current_directory = $this->sourceDir;
-
-        $this->similarFunctions = array();
-
-        // Check functions for common code.
-        // If found then recommend code be passed in as a function parameter.
-        $callback = function (string $source_file) use ($current_directory) {
-
-            // Get content of file.
-            // Get functions/methods in file
-            $functions_to_compare = $this->getFunctions(file_get_contents($source_file));
-
-            // For each function check other files for similar functions.
-            // If similar function found then inform user.
-            array_walk($functions_to_compare, function ($functionInfo, $index) use ($current_directory, $source_file) {
-
-                $function_to_compare_name = $functionInfo["name"];
-                $function_code_to_compare = $functionInfo["code"];
-
-                $callback = function (
-                    string $function_to_compare_name,
-                    string $function_code_to_compare,
-                    string $source_file
-                ) {
-                    return function (
-                        string $target_file
-                    ) use ($function_to_compare_name, $function_code_to_compare, $source_file) {
-
-
-                        // Get functions
-                        $functions = $this->getFunctions(file_get_contents($target_file));
-
-                        // For each function compare with comparison function
-                        array_walk($functions,
-                            function ($functionInfo, $index) use (
-                                $function_to_compare_name,
-                                $function_code_to_compare,
-                                $target_file,
-                                $source_file
-                            ) {
-
-                                if ($source_file == $target_file
-                                    && $function_to_compare_name == $functionInfo["name"]
-                                ) {
-                                    // Do nothing.
-                                } elseif ($this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
-                                    $this->similarFunctions[] =
-                                        array(
-                                            "srcFile"        => $source_file,
-                                            "targetFile"     => $target_file,
-                                            "srcFunction"    => $function_to_compare_name,
-                                            "targetFunction" => $functionInfo["name"]
-                                        );
-                                }
-
-                            }
-                        );
-
-                    };
-                };
-
-                new \kdaviesnz\callbackfileiterator\CallbackFileIterator(
-                    $current_directory,
-                    $callback($function_to_compare_name, $function_code_to_compare, $source_file),
-                    true
                 );
 
-            });
-
+            };
         };
 
-        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
-
-        return $this->similarFunctions;
-
+        new \kdaviesnz\callbackfileiterator\CallbackFileIterator(
+            $current_directory,
+            $callback($function_to_compare_name, $function_code_to_compare, $source_file),
+            true
+        );
     }
 
     /**
