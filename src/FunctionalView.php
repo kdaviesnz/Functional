@@ -41,6 +41,9 @@ class FunctionalView
         $functionsWithMutatedVariablesHTML = $functionsHTML["functionsWithMutatedVariablesHTML"];
         $functionsWithLoopsHTML = $functionsHTML['functionsWithLoopsHTML'];
         $similarFunctionsHTML = $functionsHTML['similarFunctionsHTML'];
+        $functionsWithVariablesUsedOnlyOnceHTML = $functionsHTML['functionsWithVariablesUsedOnlyOnceHTML'];
+        $functionsThatAreTooBigHTML = $functionsHTML['functionsThatAreTooBigHTML'];
+        $functionsThatAreNotPureHTML = $functionsHTML['functionsThatAreNotPureHTML'];
         require_once($this->functionalModel->template);
     }
 
@@ -49,12 +52,18 @@ class FunctionalView
         $functions = $this->functionalModel->getFunctionsWithIssues();
         $functionsWithMutatedVariablesHTML = $this->getHTML($functions["mutatedVariables"], $this->functionsWithMutatedVariablesHTML());
         $functionsWithLoopsHTML = $this->getHTML($functions["loops"], $this->functionsWithLoopsHTML());
+        $functionsWithVariablesUsedOnlyOnceHTML = $this->getHTML($functions["functionsWithVariablesOnlyUsedOnce"], $this->functionsWithVariablesOnlyUsedOnceHTML());
         $similarFunctionsHTML = $this->getHTML($functions["similarFunctions"], $this->similarFunctionsHTML());
+        $functionsThatAreTooBigHTML = $this->getHTML($functions["functionsThatAreTooBig"], $this->functionsThatAreTooBigHTML());
+        $functionsThatAreNotPureHTML = $this->getHTML($functions["functionsThatAreNotPure"], $this->functionsThatAreNotPureHTML());
 
         return array(
                 "functionsWithMutatedVariablesHTML" => $functionsWithMutatedVariablesHTML,
                 "functionsWithLoopsHTML" => $functionsWithLoopsHTML,
-                "similarFunctionsHTML" => $similarFunctionsHTML
+                "similarFunctionsHTML" => $similarFunctionsHTML,
+                "functionsWithVariablesUsedOnlyOnceHTML" => $functionsWithVariablesUsedOnlyOnceHTML,
+                "functionsThatAreTooBigHTML" => $functionsThatAreTooBigHTML,
+                "functionsThatAreNotPureHTML" => $functionsThatAreNotPureHTML
         );
     }
 
@@ -131,6 +140,45 @@ class FunctionalView
             <p>Method/Function <?php echo $item["name"]; ?>() in
                 <?php echo $item["srcFile"]; ?> contains at least one mutated variable.
                 Consider assigning to a new variable when variable is mutated.</p>
+            <?php
+        };
+    }
+
+    /**
+     * @return Callable
+     */
+    private function functionsThatAreTooBigHTML():Callable
+    {
+        return function (array $item) {
+            ?>
+            <p>Method/Function <?php echo $item["name"]; ?>() in
+                <?php echo $item["srcFile"]; ?> is too big. Consider refactoring into smaller functions/methods.</p>
+            <?php
+        };
+    }
+
+    /**
+     * @return Callable
+     */
+    private function functionsThatAreNotPureHTML():Callable
+    {
+        return function (array $item) {
+            ?>
+            <p>Method/Function <?php echo $item["name"]; ?>() in
+                <?php echo $item["srcFile"]; ?> is not pure.</p>
+            <?php
+        };
+    }
+
+    /**
+     * @return Callable
+     */
+    private function functionsWithVariablesOnlyUsedOnceHTML():Callable
+    {
+        return function (array $item) {
+            ?>
+            <p>Method/Function <?php echo $item["name"]; ?>() in
+                <?php echo $item["srcFile"]; ?>: Variable <?php echo $item["variable"]; ?> is set and used only once or never used.</p>
             <?php
         };
     }

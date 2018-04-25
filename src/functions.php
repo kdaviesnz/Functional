@@ -4,6 +4,8 @@
 
 function helloWorld()
 {
+    $h = "hello";
+    echo $h;
     echo "hello world";
 }
 

@@ -14,9 +14,22 @@
 
    <?php echo $functionsWithLoopsHTML; ?>
 
+   <h1>Functions with variables that are used only once</h1>
+
+   <?php echo $functionsWithVariablesUsedOnlyOnceHTML; ?>
+
+   <h1>Functions that are too big.</h1>
+
+   <?php echo $functionsThatAreTooBigHTML; ?>
+
+   <h1>Functions that are not pure.</h1>
+
+   <?php echo $functionsThatAreNotPureHTML; ?>
+
    <h1>Similar code</h1>
 
    <?php echo $similarFunctionsHTML; ?>
+
 
 
 </body>

@@ -30,6 +30,12 @@ class FunctionalModel
      */
     public $functionsWithMutatedVariables = array();
 
+    public $functionsWithVariablesUsedOnlyOnce = array();
+
+    public $functionsThatAreTooBig = array();
+
+    public $functionsThatAreNotPure = array();
+
     /**
      * @var string
      */
@@ -71,6 +77,15 @@ class FunctionalModel
                 // This sets $this->similarFunctions
                 $this->checkForSimilarCode($functionInfo, $current_directory, $source_file);
 
+                // This sets $this->functionsWithVariablesUsedOnlyOnce
+                $this->checkForVariablesUsedOnlyOnce($functionInfo, $source_file);
+
+                // This sets $this->functionsThatAreTooBig
+                $this->checkForFunctionsThatAreTooBig($functionInfo, $source_file);
+
+                // This sets $this->functionsThatAreNotPure
+                $this->checkForFunctionsThatAreNotPure($functionInfo, $source_file);
+
             });
 
         };
@@ -80,7 +95,10 @@ class FunctionalModel
         return array(
             "mutatedVariables" => $this->functionsWithMutatedVariables,
             "loops" => $this->functionsWithLoops,
-            "similarFunctions" => $this->similarFunctions
+            "similarFunctions" => $this->similarFunctions,
+            "functionsWithVariablesOnlyUsedOnce" => $this->functionsWithVariablesUsedOnlyOnce,
+            "functionsThatAreTooBig" => $this->functionsThatAreTooBig,
+            "functionsThatAreNotPure" => $this->functionsThatAreNotPure
         );
 
     }
@@ -111,6 +129,80 @@ class FunctionalModel
                         "name"    => $functionInfo["name"]
                     );
                 }
+            }
+        }
+    }
+
+    /**
+     * @param array $functionInfo
+     * @param string $source_file
+     */
+    private function checkForVariablesUsedOnlyOnce(array $functionInfo, string $source_file)
+    {
+        preg_match_all("/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $functionInfo["code"], $matches);
+
+        if (!empty($matches[1])) {
+
+
+            // Remove empty variables.
+            $variable_names = array_filter($matches[1], function ($item) {
+                return !empty(trim($item));
+            });
+
+            // Check for variables used only once or less.
+            foreach ($variable_names as $variable_name) {
+                if (substr_count($functionInfo["code"], $variable_name) < 3) {
+                    $this->functionsWithVariablesUsedOnlyOnce[] = array(
+                        "srcFile" => $source_file,
+                        "name"    => $functionInfo["name"],
+                        "variable" => $variable_name
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array $functionInfo
+     * @param string $source_file
+     */
+    private function checkForFunctionsThatAreTooBig(array $functionInfo, string $source_file)
+    {
+        if (count(explode("\n", $functionInfo["code"])) > 25) {
+            $this->functionsThatAreTooBig[] = array(
+                "srcFile" => $source_file,
+                "name"    => $functionInfo["name"],
+            );
+        }
+    }
+
+    /**
+     * @param array $functionInfo
+     * @param string $source_file
+     */
+    private function checkForFunctionsThatAreNotPure(array $functionInfo, string $source_file)
+    {
+        // If code has word "global" in it then it's not pure.
+        if (strpos($functionInfo["code"], "global")!==false) {
+            $this->functionsThatAreNotPure[] = array(
+                "srcFile" => $source_file,
+                "name"    => $functionInfo["name"],
+            );
+            return;
+        }
+
+        // Ignore constructors.
+        if ($functionInfo["name"] !== "__construct") {
+            // If code has $this->x = $y or class::x = $y then not pure.
+            preg_match_all( "/this\-\>[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
+            if ( empty( $matches[0] ) ) {
+                preg_match_all( "/\:\:[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
+            }
+            if ( ! empty( $matches[0] ) ) {
+                $this->functionsThatAreNotPure[] = array(
+                    "srcFile" => $source_file,
+                    "name"    => $functionInfo["name"],
+                );
             }
         }
     }
