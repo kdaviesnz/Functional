@@ -30,10 +30,19 @@ class FunctionalModel
      */
     public $functionsWithMutatedVariables = array();
 
+    /**
+     * @var array
+     */
     public $functionsWithVariablesUsedOnlyOnce = array();
 
+    /**
+     * @var array
+     */
     public $functionsThatAreTooBig = array();
 
+    /**
+     * @var array
+     */
     public $functionsThatAreNotPure = array();
 
     /**
@@ -63,7 +72,7 @@ class FunctionalModel
 
             // Get content of file.
             // Get functions/methods in file
-            $functions = $this->getFunctions(file_get_contents($source_file));
+            $functions = $this->getFunctions(file_get_contents($source_file), $source_file);
 
             // For each function check for mutated variables, loops.
             array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
@@ -249,7 +258,7 @@ class FunctionalModel
             ) use ($function_to_compare_name, $function_code_to_compare, $source_file) {
 
                 // Get functions
-                $functions = $this->getFunctions(file_get_contents($target_file));
+                $functions = $this->getFunctions(file_get_contents($target_file), $source_file);
 
                 // For each function compare with comparison function
                 array_walk($functions,
@@ -342,7 +351,7 @@ class FunctionalModel
      *
      * @return array
      */
-    private function addToken(array $tokenised_content, array $tokens): array
+    private function addToken(array $tokenised_content, array $tokens, string $code): array
     {
         for ($i = 0; $i < count($tokens); $i ++) {
             $token = $tokens[$i];
@@ -371,14 +380,18 @@ class FunctionalModel
                     $class                     = $tokenised_content["namespace"] . "\\" . $class;
                     $tokenised_content["class"] = $class;
                     $methods                   = get_class_methods($class);
+                    // $methods will be null if the class hasn't been loaded.
+                    if (empty($methods)) {
+                        $methods_with_code = $this->parseClassCode($code);
+                    } else {
 
-
-                    $methods_with_code = array_map(
-                        function ($method) use ($class) {
-                            return $this->getMethodCode($class, $method);
-                        },
-                        $methods
-                    );
+                        $methods_with_code = array_map(
+                            function ( $method ) use ( $class ) {
+                                return $this->getMethodCode( $class, $method );
+                            },
+                            $methods
+                        );
+                    }
 
                     $tokenised_content["methods"] = $methods_with_code;
 
@@ -423,7 +436,7 @@ class FunctionalModel
 
         $tokens = token_get_all($content);
         $tokenised_content = array();
-        $tokenised_content = $this->addToken($tokenised_content, $tokens);
+        $tokenised_content = $this->addToken($tokenised_content, $tokens, $content);
         return $tokenised_content;
 
     }
@@ -498,5 +511,47 @@ class FunctionalModel
             ""
         );
         return $content_sans_comments;
+    }
+
+    /**
+     * @param string $code
+     *
+     * @return array
+     */
+    private function parseClassCode(string $code):array
+    {
+        $codeSansComments = $this->stripComments($code);
+        $lines = array_map("trim", explode("\n", $codeSansComments));
+        preg_match_all("/p[a-zA-Z]*\sfunction\s+([a-zA-Z\_]*)\(.*?\).*/ui", $code, $matches);
+
+        if (!empty($matches[0])) {
+
+            $functions = array_map(function ($item, $key) use ($lines, $matches) {
+
+                $startLineNumber = array_search($item, $lines);
+                if ($startLineNumber) {
+                    if (isset($matches[0][$key+1])) {
+                        $endLineNumber =  array_search($matches[0][$key+1], $lines);
+                    }
+                    if (isset($endLineNumber) && is_int($endLineNumber)) {
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber, $endLineNumber - $startLineNumber )));
+                    } else {
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber )));
+                    }
+                }
+
+                return array(
+                    "name" => $matches[1][$key],
+                    "code" => isset($code)?$code:""
+                );
+
+            }, $matches[0], array_keys($matches[0]));
+
+            return $functions;
+
+        }
+
+        return array();
+
     }
 }
