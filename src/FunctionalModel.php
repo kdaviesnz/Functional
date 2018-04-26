@@ -11,7 +11,6 @@ namespace kdaviesnz\functional;
  */
 class FunctionalModel
 {
-
     /**
      * @var string
      */
@@ -151,8 +150,6 @@ class FunctionalModel
         preg_match_all("/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $functionInfo["code"], $matches);
 
         if (!empty($matches[1])) {
-
-
             // Remove empty variables.
             $variable_names = array_filter($matches[1], function ($item) {
                 return !empty(trim($item));
@@ -203,11 +200,11 @@ class FunctionalModel
         // Ignore constructors.
         if ($functionInfo["name"] !== "__construct") {
             // If code has $this->x = $y or class::x = $y then not pure.
-            preg_match_all( "/this\-\>[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
-            if ( empty( $matches[0] ) ) {
-                preg_match_all( "/\:\:[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
+            preg_match_all( "/this\-\>[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches);
+            if ( empty($matches[0])) {
+                preg_match_all( "/\:\:[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches);
             }
-            if ( ! empty( $matches[0] ) ) {
+            if ( ! empty($matches[0])) {
                 $this->functionsThatAreNotPure[] = array(
                     "srcFile" => $source_file,
                     "name"    => $functionInfo["name"],
@@ -348,6 +345,7 @@ class FunctionalModel
     /**
      * @param array $tokenised_content
      * @param array $tokens
+     * @param string $code
      *
      * @return array
      */
@@ -384,10 +382,9 @@ class FunctionalModel
                     if (empty($methods)) {
                         $methods_with_code = $this->parseClassCode($code);
                     } else {
-
                         $methods_with_code = array_map(
-                            function ( $method ) use ( $class ) {
-                                return $this->getMethodCode( $class, $method );
+                            function ($method) use ($class) {
+                                return $this->getMethodCode($class, $method);
                             },
                             $methods
                         );
@@ -528,7 +525,6 @@ class FunctionalModel
         preg_match_all("/p[a-zA-Z]*\sfunction\s+([a-zA-Z\_]*)\(.*?\).*/ui", $code, $matches);
 
         if (!empty($matches[0])) {
-
             $functions = array_map(function ($item, $key) use ($lines, $matches) {
 
                 $startLineNumber = array_search($item, $lines);
@@ -537,9 +533,11 @@ class FunctionalModel
                         $endLineNumber =  array_search($matches[0][$key+1], $lines);
                     }
                     if (isset($endLineNumber) && is_int($endLineNumber)) {
-                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber, $endLineNumber - $startLineNumber )));
+                        $code = trim(implode("\n",
+                                array_slice($lines, $startLineNumber, $endLineNumber - $startLineNumber))
+                        );
                     } else {
-                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber )));
+                        $code = trim(implode("\n", array_slice($lines, $startLineNumber)));
                     }
                 }
 
@@ -551,13 +549,18 @@ class FunctionalModel
             }, $matches[0], array_keys($matches[0]));
 
             return $functions;
-
         }
 
         return array();
 
     }
 
+    /**
+     * @param string $function_name
+     * @param string $code
+     *
+     * @return array
+     */
     private function parseFunctionCode(string $function_name, string $code):array
     {
         $codeSansComments = $this->stripComments($code);
@@ -565,7 +568,6 @@ class FunctionalModel
         preg_match_all("/function\s+([a-zA-Z\_]*)\(.*?\).*/ui", $code, $matches);
 
         if (!empty($matches[0])) {
-
             // Get all functions from the file.
             $functions = array_map(function ($item, $key) use ($lines, $matches) {
 
@@ -575,9 +577,11 @@ class FunctionalModel
                         $endLineNumber =  array_search($matches[0][$key+1], $lines);
                     }
                     if (isset($endLineNumber) && is_int($endLineNumber)) {
-                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber, $endLineNumber - $startLineNumber )));
+                        $code = trim(implode("\n",
+                                array_slice($lines, $startLineNumber, $endLineNumber - $startLineNumber))
+                        );
                     } else {
-                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber )));
+                        $code = trim(implode("\n", array_slice($lines, $startLineNumber)));
                     }
                 }
 
@@ -589,11 +593,10 @@ class FunctionalModel
             }, $matches[0], array_keys($matches[0]));
 
             // Return the matching function.
-            $selectedFunctions = array_filter($functions, function($item) use ($function_name){
+            $selectedFunctions = array_filter($functions, function ($item) use ($function_name) {
                 return "\\" . $item["name"] == $function_name;
             });
             return array_pop($selectedFunctions);
-
         }
 
         return array();
