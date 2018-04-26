@@ -417,11 +417,14 @@ class FunctionalModel
                         }
                     } while (!is_string($tokens[$i][0]));
 
-                    if (function_exists($function_name)) {
+                    if (function_exists($function_name)) { //
                         $tokenised_content["functions"][] = $this->getFunctionCode($function_name);
+                    } else {
+                        $tokenised_content["functions"][] = $this->parseFunctionCode($function_name, $code);
                     }
             }
         }
+
 
         return $tokenised_content;
     }
@@ -548,6 +551,48 @@ class FunctionalModel
             }, $matches[0], array_keys($matches[0]));
 
             return $functions;
+
+        }
+
+        return array();
+
+    }
+
+    private function parseFunctionCode(string $function_name, string $code):array
+    {
+        $codeSansComments = $this->stripComments($code);
+        $lines = array_map("trim", explode("\n", $codeSansComments));
+        preg_match_all("/function\s+([a-zA-Z\_]*)\(.*?\).*/ui", $code, $matches);
+
+        if (!empty($matches[0])) {
+
+            // Get all functions from the file.
+            $functions = array_map(function ($item, $key) use ($lines, $matches) {
+
+                $startLineNumber = array_search($item, $lines);
+                if ($startLineNumber) {
+                    if (isset($matches[0][$key+1])) {
+                        $endLineNumber =  array_search($matches[0][$key+1], $lines);
+                    }
+                    if (isset($endLineNumber) && is_int($endLineNumber)) {
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber, $endLineNumber - $startLineNumber )));
+                    } else {
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber )));
+                    }
+                }
+
+                return array(
+                    "name" => $matches[1][$key],
+                    "code" => isset($code)?$code:""
+                );
+
+            }, $matches[0], array_keys($matches[0]));
+
+            // Return the matching function.
+            $selectedFunctions = array_filter($functions, function($item) use ($function_name){
+                return "\\" . $item["name"] == $function_name;
+            });
+            return array_pop($selectedFunctions);
 
         }
 
