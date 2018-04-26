@@ -19,7 +19,8 @@
     ],
     "require": {
         "php" : "~7.0",
-        "kdaviesnz/callbackfileiterator": "v1.0.0-beta"
+        "kdaviesnz/callbackfileiterator": "v1.0.0-beta",
+        "jeremeamia/FunctionParser": "1.0.0"
     },
     "require-dev": {
         "phpunit/phpunit" : ">=5.4.3",
