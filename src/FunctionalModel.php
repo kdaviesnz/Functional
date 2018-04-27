@@ -11,6 +11,7 @@ namespace kdaviesnz\functional;
  */
 class FunctionalModel
 {
+
     /**
      * @var string
      */
@@ -71,29 +72,38 @@ class FunctionalModel
 
             // Get content of file.
             // Get functions/methods in file
-            $functions = $this->getFunctions(file_get_contents($source_file), $source_file);
+            $functions = $this->getFunctions(file_get_contents($source_file));
 
             // For each function check for mutated variables, loops.
             array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
 
-                // This sets $this->>functionsWithMutatedVariables
-                $this->checkForMutatedVariables($functionInfo, $source_file);
+                $functionsWithMutatedVariables = $this->checkForMutatedVariables($functionInfo, $source_file);
+                if ($functionsWithMutatedVariables) {
+                    $this->functionsWithMutatedVariables[] = $functionsWithMutatedVariables;
+                }
 
-                // This sets $this->functionsWithLoops
-                $this->checkForLoops($functionInfo, $source_file);
+                $functionsWithLoops = $this->checkForLoops($functionInfo, $source_file);
+                if ($functionsWithLoops) {
+                    $this->functionsWithLoops[] = $functionsWithLoops;
+                }
 
                 // This sets $this->similarFunctions
                 $this->checkForSimilarCode($functionInfo, $current_directory, $source_file);
 
-                // This sets $this->functionsWithVariablesUsedOnlyOnce
-                $this->checkForVariablesUsedOnlyOnce($functionInfo, $source_file);
+                $variablesOnlyUsedOnce = $this->checkForVariablesUsedOnlyOnce($functionInfo, $source_file);
+                if ($variablesOnlyUsedOnce) {
+                    $this->functionsWithVariablesUsedOnlyOnce[] = $variablesOnlyUsedOnce;
+                }
 
-                // This sets $this->functionsThatAreTooBig
-                $this->checkForFunctionsThatAreTooBig($functionInfo, $source_file);
+                $tooBigFunction = $this->checkForFunctionsThatAreTooBig($functionInfo, $source_file);
+                if ($tooBigFunction) {
+                    $this->functionsThatAreTooBig[] = $tooBigFunction;
+                }
 
-                // This sets $this->functionsThatAreNotPure
-                $this->checkForFunctionsThatAreNotPure($functionInfo, $source_file);
-
+                $impureFunction = $this->checkForFunctionsThatAreNotPure($functionInfo, $source_file);
+                if ($impureFunction) {
+                    $this->functionsThatAreNotPure[] = $impureFunction;
+                }
             });
 
         };
@@ -121,7 +131,7 @@ class FunctionalModel
             strpos($functionInfo["code"], "--") !== false ||
             strpos($functionInfo["code"], ".=") !== false
         ) {
-            $this->functionsWithMutatedVariables[] = array(
+            return array(
                 "srcFile" => $source_file,
                 "name"    => $functionInfo["name"]
             );
@@ -132,13 +142,14 @@ class FunctionalModel
                     return !empty(trim($item));
                 });
                 if (count($variable_names) != count(array_unique($variable_names))) {
-                    $this->functionsWithMutatedVariables[] = array(
+                    return array(
                         "srcFile" => $source_file,
                         "name"    => $functionInfo["name"]
                     );
                 }
             }
         }
+        return false;
     }
 
     /**
@@ -150,6 +161,7 @@ class FunctionalModel
         preg_match_all("/(\\$[a-zA-Z\_])*\s*\=\s*.+;/", $functionInfo["code"], $matches);
 
         if (!empty($matches[1])) {
+
             // Remove empty variables.
             $variable_names = array_filter($matches[1], function ($item) {
                 return !empty(trim($item));
@@ -158,7 +170,7 @@ class FunctionalModel
             // Check for variables used only once or less.
             foreach ($variable_names as $variable_name) {
                 if (substr_count($functionInfo["code"], $variable_name) < 3) {
-                    $this->functionsWithVariablesUsedOnlyOnce[] = array(
+                    return array(
                         "srcFile" => $source_file,
                         "name"    => $functionInfo["name"],
                         "variable" => $variable_name
@@ -166,6 +178,8 @@ class FunctionalModel
                 }
             }
         }
+
+        return false;
     }
 
     /**
@@ -175,12 +189,47 @@ class FunctionalModel
     private function checkForFunctionsThatAreTooBig(array $functionInfo, string $source_file)
     {
         if (count(explode("\n", $functionInfo["code"])) > 25) {
-            $this->functionsThatAreTooBig[] = array(
+            return array(
                 "srcFile" => $source_file,
                 "name"    => $functionInfo["name"],
             );
         }
+        return false;
     }
+
+    /**
+     * @param array $functionInfo
+     * @param string $source_file
+     */
+    public function checkForFunctionsThatArePure(array $functionInfo, string $source_file)
+    {
+        // If code has word "global" in it then it's not pure.
+        if (strpos($functionInfo["code"], "global")!==false) {
+            return false;
+        }
+
+        // If constructor then not pure.
+        if ($functionInfo["name"] == "__construct") {
+            return false;
+        }
+
+        // If code has "->" then not pure as referencing a class property.
+        if (strpos($functionInfo["code"], "->")!==false) {
+            return false;
+        }
+
+        // If code has $this->x = $y or class::x = $y then not pure.
+        preg_match_all( "/this\-\>[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
+        if ( empty( $matches[0] ) ) {
+            preg_match_all( "/\:\:[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
+        }
+        if ( ! empty( $matches[0] ) ) {
+            return false;
+        }
+
+        return true;
+    }
+
 
     /**
      * @param array $functionInfo
@@ -188,29 +237,31 @@ class FunctionalModel
      */
     private function checkForFunctionsThatAreNotPure(array $functionInfo, string $source_file)
     {
+
         // If code has word "global" in it then it's not pure.
         if (strpos($functionInfo["code"], "global")!==false) {
-            $this->functionsThatAreNotPure[] = array(
+            return array(
                 "srcFile" => $source_file,
                 "name"    => $functionInfo["name"],
             );
-            return;
         }
 
         // Ignore constructors.
         if ($functionInfo["name"] !== "__construct") {
             // If code has $this->x = $y or class::x = $y then not pure.
-            preg_match_all( "/this\-\>[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches);
-            if ( empty($matches[0])) {
-                preg_match_all( "/\:\:[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches);
+            preg_match_all( "/this\-\>[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
+            if ( empty( $matches[0] ) ) {
+                preg_match_all( "/\:\:[a-zA-Z\_]*\s*\=\s*.+;/", $functionInfo["code"], $matches );
             }
-            if ( ! empty($matches[0])) {
-                $this->functionsThatAreNotPure[] = array(
+            if ( ! empty( $matches[0] ) ) {
+                return  array(
                     "srcFile" => $source_file,
                     "name"    => $functionInfo["name"],
                 );
             }
         }
+
+        return false;
     }
 
     /**
@@ -228,11 +279,13 @@ class FunctionalModel
             strpos($functionInfo["code"], "foreach (") !== false ||
             strpos($functionInfo["code"], "while") !== false
         ) {
-            $this->functionsWithLoops[] = array(
+            return array(
                 "srcFile" => $source_file,
                 "name"    => $functionInfo["name"]
             );
         }
+
+        return false;
     }
 
     /**
@@ -255,7 +308,7 @@ class FunctionalModel
             ) use ($function_to_compare_name, $function_code_to_compare, $source_file) {
 
                 // Get functions
-                $functions = $this->getFunctions(file_get_contents($target_file), $source_file);
+                $functions = $this->getFunctions(file_get_contents($target_file));
 
                 // For each function compare with comparison function
                 array_walk($functions,
@@ -302,7 +355,7 @@ class FunctionalModel
      */
     private function getMethodCode(string $class, string $method): array
     {
-        return $this->getCodeFromReflection($method, new \ReflectionMethod($class, $method));
+        return $this->getCodeFromReflection($method, new \ReflectionMethod($class, $method), $class);
     }
 
     /**
@@ -322,7 +375,7 @@ class FunctionalModel
      *
      * @return array
      */
-    private function getCodeFromReflection(string $method_or_function_name, $reflection):array
+    private function getCodeFromReflection(string $method_or_function_name, $reflection, string $className=""):array
     {
         if (is_bool($reflection->getFileName())) {
             return array();
@@ -337,6 +390,7 @@ class FunctionalModel
         } while ($file->key() < $reflection->getEndLine());
 
         return array(
+            "className" => $className,
             "name" => $method_or_function_name,
             "code" => $this->stripComments($code)
         );
@@ -345,7 +399,6 @@ class FunctionalModel
     /**
      * @param array $tokenised_content
      * @param array $tokens
-     * @param string $code
      *
      * @return array
      */
@@ -380,11 +433,12 @@ class FunctionalModel
                     $methods                   = get_class_methods($class);
                     // $methods will be null if the class hasn't been loaded.
                     if (empty($methods)) {
-                        $methods_with_code = $this->parseClassCode($code);
+                        $methods_with_code = $this->parseClassCode($code, $class);
                     } else {
+
                         $methods_with_code = array_map(
-                            function ($method) use ($class) {
-                                return $this->getMethodCode($class, $method);
+                            function ( $method ) use ( $class ) {
+                                return $this->getMethodCode( $class, $method );
                             },
                             $methods
                         );
@@ -435,8 +489,11 @@ class FunctionalModel
     {
 
         $tokens = token_get_all($content);
+
+
         $tokenised_content = array();
         $tokenised_content = $this->addToken($tokenised_content, $tokens, $content);
+
         return $tokenised_content;
 
     }
@@ -446,11 +503,10 @@ class FunctionalModel
      *
      * @return array
      */
-    private function getFunctions(string $content): array
+    public function getFunctions(string $content): array
     {
 
         $tokenised_content = $this->getTokenisedContent($content);
-        $functions = array();
 
         // Check for $tokenised_content["methods"];
         if (isset($tokenised_content["methods"])) {
@@ -518,14 +574,15 @@ class FunctionalModel
      *
      * @return array
      */
-    private function parseClassCode(string $code):array
+    private function parseClassCode(string $code, string $className):array
     {
         $codeSansComments = $this->stripComments($code);
         $lines = array_map("trim", explode("\n", $codeSansComments));
         preg_match_all("/p[a-zA-Z]*\sfunction\s+([a-zA-Z\_]*)\(.*?\).*/ui", $code, $matches);
 
         if (!empty($matches[0])) {
-            $functions = array_map(function ($item, $key) use ($lines, $matches) {
+
+            $functions = array_map(function ($item, $key) use ($lines, $matches, $className) {
 
                 $startLineNumber = array_search($item, $lines);
                 if ($startLineNumber) {
@@ -533,15 +590,14 @@ class FunctionalModel
                         $endLineNumber =  array_search($matches[0][$key+1], $lines);
                     }
                     if (isset($endLineNumber) && is_int($endLineNumber)) {
-                        $code = trim(implode("\n",
-                                array_slice($lines, $startLineNumber, $endLineNumber - $startLineNumber))
-                        );
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber, $endLineNumber - $startLineNumber )));
                     } else {
-                        $code = trim(implode("\n", array_slice($lines, $startLineNumber)));
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber )));
                     }
                 }
 
                 return array(
+                    "className" => $className,
                     "name" => $matches[1][$key],
                     "code" => isset($code)?$code:""
                 );
@@ -549,18 +605,13 @@ class FunctionalModel
             }, $matches[0], array_keys($matches[0]));
 
             return $functions;
+
         }
 
         return array();
 
     }
 
-    /**
-     * @param string $function_name
-     * @param string $code
-     *
-     * @return array
-     */
     private function parseFunctionCode(string $function_name, string $code):array
     {
         $codeSansComments = $this->stripComments($code);
@@ -568,6 +619,7 @@ class FunctionalModel
         preg_match_all("/function\s+([a-zA-Z\_]*)\(.*?\).*/ui", $code, $matches);
 
         if (!empty($matches[0])) {
+
             // Get all functions from the file.
             $functions = array_map(function ($item, $key) use ($lines, $matches) {
 
@@ -577,11 +629,9 @@ class FunctionalModel
                         $endLineNumber =  array_search($matches[0][$key+1], $lines);
                     }
                     if (isset($endLineNumber) && is_int($endLineNumber)) {
-                        $code = trim(implode("\n",
-                                array_slice($lines, $startLineNumber, $endLineNumber - $startLineNumber))
-                        );
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber, $endLineNumber - $startLineNumber )));
                     } else {
-                        $code = trim(implode("\n", array_slice($lines, $startLineNumber)));
+                        $code = trim(implode("\n", array_slice( $lines, $startLineNumber )));
                     }
                 }
 
@@ -593,10 +643,11 @@ class FunctionalModel
             }, $matches[0], array_keys($matches[0]));
 
             // Return the matching function.
-            $selectedFunctions = array_filter($functions, function ($item) use ($function_name) {
+            $selectedFunctions = array_filter($functions, function($item) use ($function_name){
                 return "\\" . $item["name"] == $function_name;
             });
             return array_pop($selectedFunctions);
+
         }
 
         return array();
