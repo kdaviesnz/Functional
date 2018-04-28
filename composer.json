@@ -1,7 +1,7 @@
 {
     "name": "kdaviesnz/functional",
     "type": "library",
-    "description": "",
+    "description": "Check your code for compliance with Functional programming principles.",
     "minimum-stability": "dev",
     "keywords": [
         "kdaviesnz",
