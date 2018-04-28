@@ -50,12 +50,15 @@ class FunctionalModel
      */
     public $sourceDir = ".";
 
+
+    public $iterator;
+
     /**
      * FunctionalModel constructor.
      */
     public function __construct()
     {
-        // Do nothing
+        $this->iterator = new \kdaviesnz\callbackfileiterator\CallbackFileIterator();
     }
 
     /**
@@ -108,7 +111,7 @@ class FunctionalModel
 
         };
 
-        new \kdaviesnz\callbackfileiterator\CallbackFileIterator($current_directory, $callback, true);
+        $this->iterator->run($current_directory, $callback, true, false);
 
         return array(
             "mutatedVariables" => $this->functionsWithMutatedVariables,
@@ -339,11 +342,13 @@ class FunctionalModel
             };
         };
 
-        new \kdaviesnz\callbackfileiterator\CallbackFileIterator(
+        $this->iterator->run(
             $current_directory,
             $callback($function_to_compare_name, $function_code_to_compare, $source_file),
+            true,
             true
         );
+
     }
 
     /**
@@ -505,6 +510,8 @@ class FunctionalModel
      */
     public function getFunctions(string $content): array
     {
+
+        $functions = array();
 
         $tokenised_content = $this->getTokenisedContent($content);
 
