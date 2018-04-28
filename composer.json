@@ -19,7 +19,7 @@
     ],
     "require": {
         "php" : "~7.0",
-        "kdaviesnz/callbackfileiterator": "v2.0.0",
+        "kdaviesnz/callbackfileiterator": "dev-master",
         "amphp/parallel-functions": "v0.1.2"
     },
     "require-dev": {
