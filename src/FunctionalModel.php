@@ -80,32 +80,35 @@ class FunctionalModel
             // For each function check for mutated variables, loops.
             array_walk($functions, function ($functionInfo, $index) use ($current_directory, $source_file) {
 
-                $functionsWithMutatedVariables = $this->checkForMutatedVariables($functionInfo, $source_file);
-                if ($functionsWithMutatedVariables) {
-                    $this->functionsWithMutatedVariables[] = $functionsWithMutatedVariables;
-                }
+                if (isset($functionInfo["code"])) {
+                    $functionsWithMutatedVariables = $this->checkForMutatedVariables( $functionInfo, $source_file );
+                    if ( $functionsWithMutatedVariables ) {
+                        $this->functionsWithMutatedVariables[] = $functionsWithMutatedVariables;
+                    }
 
-                $functionsWithLoops = $this->checkForLoops($functionInfo, $source_file);
-                if ($functionsWithLoops) {
-                    $this->functionsWithLoops[] = $functionsWithLoops;
-                }
+                    $functionsWithLoops = $this->checkForLoops( $functionInfo, $source_file );
+                    if ( $functionsWithLoops ) {
+                        $this->functionsWithLoops[] = $functionsWithLoops;
+                    }
 
-                // This sets $this->similarFunctions
-                $this->checkForSimilarCode($functionInfo, $current_directory, $source_file);
+                    // This sets $this->similarFunctions
+                    $this->checkForSimilarCode( $functionInfo, $current_directory, $source_file );
 
-                $variablesOnlyUsedOnce = $this->checkForVariablesUsedOnlyOnce($functionInfo, $source_file);
-                if ($variablesOnlyUsedOnce) {
-                    $this->functionsWithVariablesUsedOnlyOnce[] = $variablesOnlyUsedOnce;
-                }
+                    $variablesOnlyUsedOnce = $this->checkForVariablesUsedOnlyOnce( $functionInfo, $source_file );
+                    if ( $variablesOnlyUsedOnce ) {
+                        $this->functionsWithVariablesUsedOnlyOnce[] = $variablesOnlyUsedOnce;
+                    }
 
-                $tooBigFunction = $this->checkForFunctionsThatAreTooBig($functionInfo, $source_file);
-                if ($tooBigFunction) {
-                    $this->functionsThatAreTooBig[] = $tooBigFunction;
-                }
+                    $tooBigFunction = $this->checkForFunctionsThatAreTooBig( $functionInfo, $source_file );
+                    if ( $tooBigFunction ) {
+                        $this->functionsThatAreTooBig[] = $tooBigFunction;
+                    }
 
-                $impureFunction = $this->checkForFunctionsThatAreNotPure($functionInfo, $source_file);
-                if ($impureFunction) {
-                    $this->functionsThatAreNotPure[] = $impureFunction;
+                    $impureFunction = $this->checkForFunctionsThatAreNotPure( $functionInfo, $source_file );
+                    if ( $impureFunction ) {
+                        $this->functionsThatAreNotPure[] = $impureFunction;
+                    }
+
                 }
             });
 
@@ -326,7 +329,7 @@ class FunctionalModel
                             && $function_to_compare_name == $functionInfo["name"]
                         ) {
                             // Do nothing.
-                        } elseif ($this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
+                        } elseif (isset($functionInfo["code"]) && $this->isSimilar($function_code_to_compare, $functionInfo["code"])) {
                             $this->similarFunctions[] =
                                 array(
                                     "srcFile"        => $source_file,
@@ -346,7 +349,7 @@ class FunctionalModel
             $current_directory,
             $callback($function_to_compare_name, $function_code_to_compare, $source_file),
             true,
-            true
+            false
         );
 
     }
@@ -534,6 +537,24 @@ class FunctionalModel
      */
     private function isSimilar(string $comparisonFunctionContent, string $currentFunctionContent): bool
     {
+        $numberOfcomparisonFunctionContentLines = array_filter(
+            explode("\n", $comparisonFunctionContent),
+            function($line){
+                return !empty(trim($line));
+            }
+        );
+
+        $currentFunctionContentLines = array_filter(
+            explode("\n", $currentFunctionContent),
+            function($line){
+                return !empty(trim($line));
+            }
+        );
+
+        if (count($numberOfcomparisonFunctionContentLines) <= 5 || count($currentFunctionContentLines) <= 5 ) {
+            return false;
+        }
+
         similar_text($comparisonFunctionContent, $currentFunctionContent, $perc);
 
         return $perc > 60;
@@ -653,8 +674,12 @@ class FunctionalModel
             $selectedFunctions = array_filter($functions, function($item) use ($function_name){
                 return "\\" . $item["name"] == $function_name;
             });
-            return array_pop($selectedFunctions);
 
+            if (empty($selectedFunctions)) {
+                return array();
+            } else {
+                return array_pop($selectedFunctions);
+            }
         }
 
         return array();
