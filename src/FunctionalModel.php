@@ -436,7 +436,10 @@ class FunctionalModel
                         $class = $matches[1];
                     }
 
-                    $class                     = $tokenised_content["namespace"] . "\\" . $class;
+
+                    if (!empty($tokenised_content)) {
+                        $class = $tokenised_content["namespace"] . "\\" . $class;
+                    }
                     $tokenised_content["class"] = $class;
                     $methods                   = get_class_methods($class);
                     // $methods will be null if the class hasn't been loaded.
